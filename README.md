@@ -111,7 +111,7 @@ go run ./cmd/client -file examples/sample_input.json -expected examples/expected
 {
   "status": "ok",
   "version": "1.0.0",
-  "rules": 24,
+  "rules": 34,
   "rules_source": "embedded 7 files (ftp.yaml, http.yaml, ...)",
   "workers": 8,
   "uptime_seconds": 42
@@ -258,7 +258,7 @@ Pure-FTPd 无版本 `0.95 − 0.20 = 0.75`、SSH `0.95`、nginx/Apache/MySQL/Pro
 | 输入边界 | body 上限、item 数量上限、banner 截断 64KB、`ReadHeaderTimeout`/`ReadTimeout`/`WriteTimeout`/`IdleTimeout`、`MaxHeaderBytes` | `api`、`server` |
 | 配置失败要响 | 环境变量非法（如 `PORT=abc`、`LOG_LEVEL=verbose`）直接启动失败，不静默降级 | `internal/config` |
 | 规则加载失败要响 | YAML 字段拼错（`KnownFields(true)`）、正则编译失败、id 重复 → 启动失败并指出文件:规则 id | `engine.Load` / `engine.compile` |
-| CI | gofmt / vet / `-race` 测试 / 30s fuzz / 构建两个镜像 / 端到端比对样例 | `.github/workflows/ci.yml` |
+| CI 就绪 | `make check` = gofmt + `go vet` + `go test ./...`；`make fuzz` 跑 15s fuzz；镜像构建与端到端校验见 §7 | `Makefile` |
 
 ---
 
@@ -304,4 +304,4 @@ ok  github.com/esp-oss/banner-fingerprint/internal/model
 - 只根据**单条 banner** 判定，不做多轮交互探测（示例数据也没有给交互能力）。真实资产测绘里，MySQL/Redis 的版本常常需要主动探测才能拿到，这里如实留空而不是猜。
 - `version` 只提取、不联网核对 CVE 库；没有做版本号语义排序。
 - HTTPS 在 443 上仍报 `HTTP`（因为 banner 就是明文 HTTP 响应），这是**有意为之**：`protocol` 描述的是"这是什么协议"，而不是"端口通常是什么服务"。
-- 规则集当前 24 条，覆盖 SSH / HTTP / MySQL / Redis / FTP / SMTP / IMAP / POP3 / TLS；新增协议只需加 YAML（见 §4）。
+- 规则集当前 34 条，覆盖 SSH / HTTP / MySQL / Redis / FTP / SMTP / IMAP / POP3 / TLS；新增协议只需加 YAML（见 §4）。
