@@ -1,0 +1,71 @@
+# FTP
+#
+# FTP greets with "220[- ]<text>".  The same 220 is used by SMTP, which is why
+# every rule here requires a *product token* instead of looking at the reply code
+# alone.  A bare "220 hello" therefore stays unknown rather than being guessed as
+# FTP - the mail.yaml rules run first for anything mentioning SMTP/ESMTP.
+version: 1
+rules:
+  - id: ftp-proftpd
+    protocol: FTP
+    product: ProFTPD
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: regex
+      # "220 ProFTPD 1.3.7 Server (ProFTPD)"
+      pattern: '^220[ -].*?(?i:proftpd)(?:[ /](?P<version>[0-9][0-9A-Za-z._-]*))?'
+
+  - id: ftp-vsftpd
+    protocol: FTP
+    product: vsFTPd
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: regex
+      # "220 (vsFTPd 3.0.5)"
+      pattern: '^220[ -].*?(?i:vsftpd)(?:[ /](?P<version>[0-9][0-9A-Za-z._-]*))?'
+
+  - id: ftp-pureftpd
+    # Pure-FTPd is usually started without a version in the greeting, so the
+    # 0.95 base is chosen to land on 0.75 after the version penalty.
+    protocol: FTP
+    product: Pure-FTPd
+    confidence: 0.95
+    priority: 200
+    match:
+      kind: regex
+      # "220 Welcome to Pure-FTPd" / "220 Pure-FTPd [privsep] [TLS] ready"
+      pattern: '^220[ -].*?(?i:pure-ftpd)(?:[ /](?P<version>[0-9][0-9.]*))?'
+
+  - id: ftp-filezilla
+    protocol: FTP
+    product: FileZilla Server
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: regex
+      pattern: '^220[ -].*?(?i:filezilla)(?:[ /](?P<version>[0-9][0-9.]*))?'
+
+  - id: ftp-microsoft
+    protocol: FTP
+    product: Microsoft FTP Service
+    confidence: 0.88
+    priority: 200
+    match:
+      kind: regex
+      # "220 Microsoft FTP Service"
+      pattern: '^220[ -].*?(?i:microsoft ftp service)'
+    os_patterns:
+      - {pattern: '(?i)microsoft', value: Windows}
+
+  - id: ftp-generic
+    # Last-resort FTP: a 220 greeting that does not mention any product we know
+    # and does not look like mail.  Deliberately low priority and low confidence.
+    protocol: FTP
+    confidence: 0.75
+    priority: 20
+    match:
+      kind: regex
+      pattern: '^220[ -][^.]*?(?i:ftp)(?:[ /](?P<version>[0-9][0-9.]*))?'
+    note: 'Requires the literal token "ftp" so that generic 220 greetings from unknown services stay unknown.'

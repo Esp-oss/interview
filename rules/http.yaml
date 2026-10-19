@@ -1,0 +1,141 @@
+# HTTP
+#
+# Every HTTP rule reads the Server response header through the generic
+# `http_header` primitive and then applies a product-specific pattern to the
+# header VALUE.  Matching the whole banner would be wrong: the same product name
+# frequently appears inside an HTML body or an X-Powered-By header.
+#
+# Product ordering matters: http-generic has the lowest priority so it only
+# answers when no product rule matched.
+version: 1
+rules:
+  - id: http-nginx
+    protocol: HTTP
+    product: nginx
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: http_header
+      header: Server
+      # "nginx/1.24.0", "nginx/1.18.0 (Ubuntu)", "nginx"
+      pattern: '^(?i:nginx)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+      - {pattern: 'Win32|Win64', value: Windows}
+      - {pattern: 'FreeBSD', value: FreeBSD}
+
+  - id: http-openresty
+    protocol: HTTP
+    product: OpenResty
+    confidence: 0.90
+    priority: 198
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:openresty)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-apache
+    protocol: HTTP
+    product: Apache
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: http_header
+      header: Server
+      # "Apache/2.4.57", "Apache/2.4.41 (Ubuntu)", "Apache"
+      pattern: '^(?i:apache)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+      - {pattern: 'Win32|Win64', value: Windows}
+      - {pattern: 'FreeBSD', value: FreeBSD}
+      - {pattern: 'CentOS', value: CentOS}
+
+  - id: http-jetty
+    protocol: HTTP
+    product: Jetty
+    confidence: 0.85
+    priority: 200
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:jetty)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+    note: 'Jetty is usually reported without any OS token, hence the slightly lower base confidence.'
+
+  - id: http-tomcat
+    protocol: HTTP
+    product: Apache-Coyote
+    confidence: 0.88
+    priority: 199
+    match:
+      kind: http_header
+      header: Server
+      # Tomcat's connector reports "Apache-Coyote/1.1"
+      pattern: '^(?i:apache-coyote)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-iis
+    protocol: HTTP
+    product: Microsoft-IIS
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: http_header
+      header: Server
+      # "Microsoft-IIS/10.0"
+      pattern: '^(?i:microsoft-iis)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+    os_patterns:
+      - {pattern: '(?i)iis', value: Windows}
+    note: 'IIS only exists on Windows; that is the one OS hint derived from the product rather than a comment field.'
+
+  - id: http-caddy
+    protocol: HTTP
+    product: Caddy
+    confidence: 0.88
+    priority: 190
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:caddy)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-lighttpd
+    protocol: HTTP
+    product: lighttpd
+    confidence: 0.88
+    priority: 190
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:lighttpd)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-gunicorn
+    protocol: HTTP
+    product: gunicorn
+    confidence: 0.88
+    priority: 190
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:gunicorn)(?:/(?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-cloudflare
+    protocol: HTTP
+    product: Cloudflare
+    confidence: 0.85
+    priority: 190
+    match:
+      kind: http_header
+      header: Server
+      pattern: '^(?i:cloudflare)(?:[ /](?P<version>[^\s(]+))?(?:\s|$)'
+
+  - id: http-generic
+    # Any HTTP response whose server software we cannot name.  "HTTP" is still a
+    # correct answer for the protocol, so this is a match - not an unknown - but
+    # the missing product/version pull the confidence down.
+    protocol: HTTP
+    confidence: 0.80
+    priority: 10
+    match:
+      kind: regex
+      pattern: '^HTTP/[0-9](?:\.[0-9])? [0-9]{3}'
+    note: 'Protocol-only identification: confidence falls to ~0.55 after the product/version penalties.'

@@ -1,0 +1,64 @@
+# Mail protocols (bonus breadth)
+#
+# These are not required by the task, but they are the most common source of
+# false positives for FTP rules (both greet with "220"), so they are declared
+# explicitly and given a higher priority than the FTP fallbacks.
+version: 1
+rules:
+  - id: smtp-postfix
+    protocol: SMTP
+    product: Postfix
+    confidence: 0.88
+    priority: 160
+    match:
+      kind: regex
+      # "220 mail.example.com ESMTP Postfix (Ubuntu)"
+      pattern: '^220[ -].*?(?i:postfix)(?:[ /](?P<version>[0-9][0-9A-Za-z._-]*))?'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+
+  - id: smtp-exim
+    protocol: SMTP
+    product: Exim
+    confidence: 0.88
+    priority: 160
+    match:
+      kind: regex
+      pattern: '^220[ -].*?(?i:exim)(?:[ /](?P<version>[0-9][0-9A-Za-z._-]*))?'
+
+  - id: smtp-exchange
+    protocol: SMTP
+    product: Microsoft ESMTP
+    confidence: 0.88
+    priority: 165
+    match:
+      kind: regex
+      pattern: '^220[ -].*?(?i:microsoft esmtp)(?:[ /](?P<version>[0-9][0-9A-Za-z._-]*))?'
+    os_patterns:
+      - {pattern: '(?i)microsoft', value: Windows}
+
+  - id: smtp-generic
+    protocol: SMTP
+    confidence: 0.82
+    priority: 155
+    match:
+      kind: regex
+      pattern: '^220[ -].*?(?i:esmtp|smtp)(?:[ /](?P<version>[0-9][0-9.]*))?'
+
+  - id: imap-generic
+    protocol: IMAP
+    confidence: 0.82
+    priority: 160
+    match:
+      kind: regex
+      # "* OK [CAPABILITY IMAP4rev1 ...] Dovecot ready."
+      pattern: '^\* (?:OK|PREAUTH)\b.*?(?i:imap)'
+
+  - id: pop3-generic
+    protocol: POP3
+    confidence: 0.82
+    priority: 160
+    match:
+      kind: regex
+      pattern: '^\+OK\b.*?(?i:pop3)'

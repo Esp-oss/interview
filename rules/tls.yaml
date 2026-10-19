@@ -1,0 +1,22 @@
+# TLS
+#
+# A TLS banner is a binary record, so this rule deliberately confines itself to
+# the transport protocol and reports no product and no version beyond the
+# negotiated protocol version.
+#
+# EVIDENCE THRESHOLD (see docs/design.md "design decisions"): a four-byte session
+# fragment such as 16 03 01 00 a5 only proves "this port speaks TLS".  It does not
+# identify the peer software and it is not even proof that we saw a server
+# response.  Reporting "TLS" from that fragment would be a guess - and a wrong
+# guess is worse than "unknown" - so `tls_record` only produces evidence for a
+# complete ServerHello.  A truncated fragment therefore stays unknown.
+version: 1
+rules:
+  - id: tls-server-hello
+    protocol: TLS
+    confidence: 0.65
+    priority: 150
+    match:
+      kind: tls_record
+      pattern: '^(?P<version>TLS1\.[0-3]|SSL3\.0)$'
+    note: 'Transport-level identification only: 0.65 base - 0.05 (no product) = 0.60.'

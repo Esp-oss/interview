@@ -1,0 +1,14 @@
+# Keep the build context minimal: only what the two targets copy.
+.git
+.github
+.gitignore
+.dockerignore
+docs
+examples
+*.md
+Makefile
+.env
+.env.example
+bin
+coverage.out
+*.test

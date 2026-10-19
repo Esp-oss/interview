@@ -1,0 +1,41 @@
+# SSH
+#
+# The SSH identification string is the single best-defined binary banner in the
+# wild: it is mandatory, ASCII, and its comment field leaks the vendor and the
+# distribution.  Format: SSH-<protoversion>-<softwareversion>[ <comment>]
+version: 1
+rules:
+  - id: ssh-openssh
+    protocol: SSH
+    product: OpenSSH
+    confidence: 0.95
+    priority: 200
+    match:
+      kind: regex
+      # "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3" -> product=OpenSSH, version=8.9p1
+      # "SSH-2.0-OpenSSH_9.3 Debian-1"  -> os_hint=Debian
+      pattern: '^SSH-(?:[0-9]+\.[0-9]+)-(?P<product>OpenSSH)[-_](?P<version>[^\s]+)'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+      - {pattern: 'FreeBSD', value: FreeBSD}
+      - {pattern: 'Raspbian', value: Raspbian}
+      - {pattern: 'openSUSE', value: openSUSE}
+      - {pattern: 'Alpine', value: Alpine}
+    note: 'The trailing comment names the distribution, which is how os_hint is derived without guessing.'
+
+  - id: ssh-generic
+    # Any other SSH implementation (dropbear, Bitvise, Cisco, ...).  Kept at a
+    # lower priority so a specific rule always wins.  Two per cent lower base
+    # confidence because the version layout is not standardised across vendors.
+    protocol: SSH
+    confidence: 0.90
+    priority: 190
+    match:
+      kind: regex
+      pattern: '^SSH-(?:[0-9]+\.[0-9]+)-(?P<product>[A-Za-z][A-Za-z0-9._+-]*)[-_]?(?P<version>[0-9][A-Za-z0-9._-]*)?'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+      - {pattern: 'FreeBSD', value: FreeBSD}
+    note: 'Covers non-OpenSSH servers; the protocol prefix alone already proves SSH, so this still scores high.'

@@ -1,0 +1,19 @@
+# Build output
+/bin/
+*.exe
+*.test
+*.out
+coverage.html
+
+# Local configuration and secrets
+.env
+*.local.json
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# NOTE: vendor/ is intentionally committed. The image build runs with GOPROXY=off so
+# that it never depends on a module proxy being reachable.

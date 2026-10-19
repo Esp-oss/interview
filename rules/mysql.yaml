@@ -1,0 +1,37 @@
+# MySQL
+#
+# The initial handshake is a binary packet, not text:
+#
+#   [3 bytes payload length][1 byte sequence id][0x0a][server version, NUL terminated]
+#
+# The `mysql_handshake` primitive parses that layout and hands the version string
+# to the rule, so this file never has to describe binary offsets - and the binary
+# handling lives in one testable Go function instead of an unreadable regex.
+version: 1
+rules:
+  - id: mysql-mariadb
+    # MariaDB reports itself as "5.5.5-10.6.12-MariaDB" for client compatibility.
+    protocol: MySQL
+    product: MariaDB
+    confidence: 0.90
+    priority: 210
+    match:
+      kind: mysql_handshake
+      pattern: '^(?:[0-9]+\.[0-9]+\.[0-9]+-)?(?P<version>[0-9]+\.[0-9]+\.[0-9]+)-MariaDB'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+
+  - id: mysql-server
+    protocol: MySQL
+    product: MySQL
+    confidence: 0.90
+    priority: 200
+    match:
+      kind: mysql_handshake
+      # "8.0.32", "5.7.42", "8.0.32-0ubuntu0.22.04.1"
+      pattern: '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)'
+    os_patterns:
+      - {pattern: 'Ubuntu', value: Ubuntu}
+      - {pattern: 'Debian', value: Debian}
+      - {pattern: 'Win', value: Windows}
