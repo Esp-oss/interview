@@ -94,3 +94,62 @@ func TestResultJSONContract(t *testing.T) {
 		t.Fatalf("contract drift:\n got %s\nwant %s", raw, want)
 	}
 }
+
+// Scanner dumps and the task statement itself use Python-style "\x00" escapes,
+// which are not valid JSON. Rejecting them would fail the whole batch - the one
+// failure mode that produces zero results - so they are repaired.
+func TestDecodeItemsRepairsPythonHexEscapes(t *testing.T) {
+	raw := `[{"ip":"1.2.3.7","port":3306,"banner":"J\x00\x00\x00\n8.0.32\x00"}]`
+	items, err := model.DecodeItems([]byte(raw))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("got %d items, want 1", len(items))
+	}
+	want := "J\x00\x00\x00\n8.0.32\x00" // real NUL bytes and a real LF
+	if items[0].Banner != want {
+		t.Fatalf("banner = %q, want %q", items[0].Banner, want)
+	}
+}
+
+// Bytes above 0x7F must stay single bytes: "\xa5" is the byte 0xA5, not the
+// two-byte UTF-8 encoding of U+00A5.
+func TestDecodeItemsHexEscapesKeepHighBytes(t *testing.T) {
+	items, err := model.DecodeItems([]byte(`[{"banner":"\x16\x03\x01\x00\xa5\x01\x00\x00\xa1"}]`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := []byte(items[0].Banner)
+	if len(got) != 9 {
+		t.Fatalf("banner length = %d, want 9 (% x)", len(got), got)
+	}
+	if got[4] != 0xa5 {
+		t.Fatalf("byte 4 = 0x%02x, want 0xa5 (% x)", got[4], got)
+	}
+}
+
+// The repair must not touch a literal backslash: only a real "\xHH" byte escape is
+// rewritten. The second record makes the strict parse fail, which is what puts the
+// whole document on the repair path.
+func TestDecodeItemsLeavesEscapedBackslashAlone(t *testing.T) {
+	items, err := model.DecodeItems([]byte(`[{"banner":"a\\x41b"},{"banner":"c\x00d"}]`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if items[0].Banner != `a\x41b` {
+		t.Fatalf("literal backslash was rewritten: %q", items[0].Banner)
+	}
+	if items[1].Banner != "c\x00d" {
+		t.Fatalf("real escape was not repaired: %q", items[1].Banner)
+	}
+}
+
+// The repair is a fallback, not a licence to accept anything.
+func TestDecodeItemsStillRejectsRealSyntaxErrors(t *testing.T) {
+	for _, input := range []string{`[{"ip":}]`, `{`, `not json`, `[{"banner":"\xZZ"}]`, `[{"banner":"\x0"}]`} {
+		if _, err := model.DecodeItems([]byte(input)); err == nil {
+			t.Fatalf("expected an error for %q", input)
+		}
+	}
+}

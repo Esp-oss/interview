@@ -96,6 +96,12 @@ go run ./cmd/client -file examples/sample_input.json -expected examples/expected
 **状态码语义**：只有*传输层*问题才是 4xx —— 请求体读不出来 / 超限 / item 超量 / JSON 语法错误。
 **任何单条记录的语义问题（空 banner、二进制垃圾、缺字段、超长）都在响应内部降级为 `unknown`，绝不让整个请求失败。**
 
+**输入宽容性（一处特殊修复）**：扫描器与本任务题面的数据常用 Python 风格 `\x00` / `\x16` 转义，而 JSON 只认 `\u0000`。
+若严格解析，整批会直接 400 —— 这是唯一能让"一条结果都出不来"的路径。因此 `DecodeItems` 先做严格解析，
+失败后再做一次**转义感知的修复**（把字符串内的 `\xHH` 改写为 `\u00HH`，`\\x41` 这类字面反斜杠不动，
+`0x80~0xFF` 还原为单字节以保住二进制 banner 的长度）。合法 JSON 永远走严格路径，行为不变。
+样例见 [`examples/sample_input_hex_escapes.json`](examples/sample_input_hex_escapes.json)。
+
 | 场景 | 状态码 |
 |---|---|
 | 正常批量 | `200` |

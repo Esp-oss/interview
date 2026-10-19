@@ -113,7 +113,8 @@ fuzz 测试断言 `unknown ⇒ 三个字段为空且置信度为 0`。
 | banner 为空/`null`/全 NUL | `unknown`，200 |
 | 非法 UTF-8 / 二进制垃圾 | `unknown`，200（RE2 与字节解析都不 panic） |
 | banner > 64KB | 截断后匹配，200 |
-| JSON 语法错误 | 400 + `{"error":...}` |
+| JSON 里出现 Python 风格 `\x00` 转义 | 先严格解析；失败后转义感知地修复并重试，200（否则整批 400 = 零结果） |
+| JSON 语法错误（无法修复） | 400 + `{"error":...}` |
 | body 超限 / item 超 `MAX_BATCH` | 413 |
 | 方法错误 | 405（`Allow` 头） |
 | 规则文件损坏 | 进程启动失败，退出码 1，日志指出 `file:rule-id:reason` |

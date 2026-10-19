@@ -239,6 +239,24 @@ func TestFingerprintNeverFailsOnGarbage(t *testing.T) {
 	}
 }
 
+// A batch written with Python-style hex escapes (as scanners and the task
+// statement do) must be answered, not rejected: the alternative is zero results.
+func TestFingerprintAcceptsPythonHexEscapes(t *testing.T) {
+	h := newServer(t, api.Config{})
+	body := `[{"ip":"1.2.3.7","port":3306,"banner":"J\x00\x00\x00\n8.0.32\x00"}]`
+	rec := post(t, h, body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	got := decode(t, rec)
+	if len(got) != 1 {
+		t.Fatalf("got %d results", len(got))
+	}
+	if got[0].Protocol != "MySQL" || got[0].Version != "8.0.32" {
+		t.Fatalf("unexpected result: %+v", got[0])
+	}
+}
+
 func TestRequestIDHeader(t *testing.T) {
 	h := newServer(t, api.Config{})
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
