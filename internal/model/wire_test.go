@@ -153,3 +153,41 @@ func TestDecodeItemsStillRejectsRealSyntaxErrors(t *testing.T) {
 		}
 	}
 }
+
+// FuzzDecodeItemsNoPanic exercises the escape-aware repair state machine with
+// arbitrary bytes. Besides panics (truncated escapes, unterminated strings,
+// indices at the end of the buffer) it asserts a real invariant: anything the
+// decoder accepts must survive a round trip through its own encoder.
+func FuzzDecodeItemsNoPanic(f *testing.F) {
+	seeds := []string{
+		`[{"ip":"1.2.3.4","port":22,"banner":"x"}]`,
+		`{"items":[]}`,
+		`{"ip":"1.1.1.1","port":1,"banner":"y"}`,
+		`[{"banner":"J\x00\x00\x00\n8.0.32\x00"}]`,
+		`[{"banner":"a\\x41b"}]`,
+		`[{"banner":"\x16\x03\x01\x00\xa5"}]`,
+		`[{"banner":"\x"}]`,
+		`[{"banner":"\xZZ"}]`,
+		`[{"banner":"\x0"}]`,
+		`[{"banner":"\u0000","port":"22","addr":"1.1.1.1:22"}]`,
+		``,
+		`[]`,
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	f.Fuzz(func(t *testing.T, input string) {
+		items, err := model.DecodeItems([]byte(input))
+		if err != nil {
+			return
+		}
+		encoded, marshalErr := json.Marshal(items)
+		if marshalErr != nil {
+			t.Fatalf("accepted input produced unencodable items: %v", marshalErr)
+		}
+		if _, decodeErr := model.DecodeItems(encoded); decodeErr != nil {
+			t.Fatalf("own encoding does not decode: %v (encoded %s)", decodeErr, encoded)
+		}
+	})
+}
