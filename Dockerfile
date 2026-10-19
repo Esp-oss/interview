@@ -16,10 +16,17 @@
 #  * Dependencies are vendored and the build runs with GOPROXY=off, so the image
 #    builds without contacting any Go module proxy.  Only the Go base image is
 #    pulled from a registry.
-#  * TARGETOS/TARGETARCH come from BuildKit, so `docker buildx build --platform
-#    linux/arm64` cross-compiles without emulation.
+#  * The Go toolchain image is the ONLY external dependency of the build. Its tag
+#    is a build argument, so a mirror or a pinned digest can be substituted
+#    without touching the file:
+#        docker compose build --build-arg GO_IMAGE=<registry>/golang:1.26-alpine
+#        GO_IMAGE=<registry>/golang:1.26-alpine docker compose up --build
+#    Source, modules (vendor/) and rules are all inside this repository.
+#  * One platform, deliberately: the build target and the run target are the same
+#    machine. A cross-compilation matrix would only add build surface here.
+ARG GO_IMAGE=golang:1.26-alpine
 
-FROM golang:1.26-alpine AS build
+FROM ${GO_IMAGE} AS build
 
 WORKDIR /src
 

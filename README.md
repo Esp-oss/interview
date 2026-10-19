@@ -253,6 +253,7 @@ Pure-FTPd 无版本 `0.95 − 0.20 = 0.75`、SSH `0.95`、nginx/Apache/MySQL/Pro
 |---|---|---|
 | 镜像体积/攻击面 | 静态链接（`CGO_ENABLED=0`）+ `scratch` 运行时，无 shell/libc/包管理器 | `Dockerfile` |
 | 构建可复现 | `-trimpath`、`-buildvcs=false`、`-ldflags="-s -w"`、依赖 `vendor/`、`GOPROXY=off`（**构建期不访问任何 Go 模块代理**） | `Dockerfile` |
+| 环境依赖可替换 | 构建的**唯一**外部依赖是 Go 基础镜像，且可替换：`GO_IMAGE=<registry>/golang:1.26-alpine docker compose up --build`（换镜像源或固定 digest 不用改文件） | `Dockerfile`、compose |
 | 单平台构建 | 构建与运行同平台，静态链接产物；不引入交叉编译矩阵（评估与生产都只在一台机器上 `compose up`，多架构是纯增量风险） | `Dockerfile` |
 | 版本可追溯 | `-X main.version=${VERSION}` 注入，`/health` 与 `server version` 可查 | `Dockerfile`、`api` |
 | 健康检查 | **镜像内没有 curl**，探针是二进制自己的 `healthcheck` 子命令（`GET 127.0.0.1:$PORT/health`，2s 超时） | `Dockerfile`、`cmd/server` |

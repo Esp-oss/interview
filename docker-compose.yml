@@ -32,6 +32,9 @@ services:
       target: server
       args:
         VERSION: ${VERSION:-1.0.0}
+        # Overridable so the build works behind a registry mirror or with a
+        # pinned digest: GO_IMAGE=<registry>/golang:1.26-alpine
+        GO_IMAGE: ${GO_IMAGE:-golang:1.26-alpine}
     image: banner-fingerprint/server:${VERSION:-1.0.0}
     environment:
       PORT: "8080"
@@ -75,6 +78,7 @@ services:
       target: client
       args:
         VERSION: ${VERSION:-1.0.0}
+        GO_IMAGE: ${GO_IMAGE:-golang:1.26-alpine}
     image: banner-fingerprint/client:${VERSION:-1.0.0}
     # A real dependency edge: the client only starts once the server's own health
     # probe has passed, not merely once its container exists.
