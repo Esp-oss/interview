@@ -36,16 +36,15 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY rules/ ./rules/
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
 ARG VERSION=dev
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-      go build -trimpath -buildvcs=false \
+# Static binaries: no libc, no dynamic loader, nothing for the scratch runtime to
+# satisfy. Build host and run host are the same platform here on purpose - a
+# cross-compilation matrix would add buildsurface without changing behaviour.
+RUN CGO_ENABLED=0 go build -trimpath -buildvcs=false \
         -ldflags="-s -w -X main.version=${VERSION}" \
         -o /out/server ./cmd/server \
- && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-      go build -trimpath -buildvcs=false \
+ && CGO_ENABLED=0 go build -trimpath -buildvcs=false \
         -ldflags="-s -w -X main.version=${VERSION}" \
         -o /out/client ./cmd/client
 

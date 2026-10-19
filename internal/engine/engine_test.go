@@ -289,3 +289,73 @@ func closeEnough(a, b float64) bool {
 	}
 	return d < 0.001
 }
+
+// A scanner that keeps only part of a response must still be identified: the
+// header block is recognised without a status line.
+func TestHTTPHeaderWithoutStatusLine(t *testing.T) {
+	eng := newEngine(t)
+
+	positive := []struct {
+		name    string
+		banner  string
+		product string
+		version string
+		osHint  string
+	}{
+		{
+			name:    "status line trimmed",
+			banner:  "Server: nginx/1.24.0\r\nDate: Tue, 01 Jan 2024 00:00:00 GMT\r\nContent-Type: text/html",
+			product: "nginx", version: "1.24.0",
+		},
+		{
+			name:    "header only, bare LF, lowercase name",
+			banner:  "server: Apache/2.4.41 (Ubuntu)\nX-Powered-By: PHP/8.2",
+			product: "Apache", version: "2.4.41", osHint: "Ubuntu",
+		},
+		{
+			name:    "header only, jetty",
+			banner:  "Server: Jetty/9.4.51",
+			product: "Jetty", version: "9.4.51",
+		},
+	}
+	for _, tc := range positive {
+		t.Run(tc.name, func(t *testing.T) {
+			got := eng.Identify(model.Item{IP: "1.0.0.1", Port: 80, Banner: tc.banner})
+			if got.Protocol != "HTTP" {
+				t.Fatalf("protocol = %q, want HTTP (banner %q)", got.Protocol, tc.banner)
+			}
+			if got.Product != tc.product || got.Version != tc.version || got.OSHint != tc.osHint {
+				t.Fatalf("got %+v, want product=%q version=%q os_hint=%q", got, tc.product, tc.version, tc.osHint)
+			}
+		})
+	}
+}
+
+// The relaxed parser must not turn free text into HTTP: a mid-header block only
+// counts when every leading line really is "Name: value".
+func TestHTTPHeaderRejectsFreeText(t *testing.T) {
+	eng := newEngine(t)
+	for _, banner := range []string{
+		"hello world\r\nServer: nginx/1.24.0",
+		"220 mail.example.com ESMTP\r\nServer: nginx/1.24.0",
+		"<html><body>Server: nginx/1.24.0</body></html>",
+	} {
+		got := eng.Identify(model.Item{IP: "1.0.0.2", Port: 80, Banner: banner})
+		if got.Product == "nginx" {
+			t.Fatalf("free text was mistaken for HTTP/nginx: %+v (banner %q)", got, banner)
+		}
+	}
+}
+
+// A header-looking line inside a response body must never be used as evidence.
+func TestHTTPBodyIsNotSearchedForHeaders(t *testing.T) {
+	eng := newEngine(t)
+	banner := "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html>\r\nServer: nginx/9.9.9\r\n</html>"
+	got := eng.Identify(model.Item{IP: "1.0.0.3", Port: 80, Banner: banner})
+	if got.Version == "9.9.9" || got.Product == "nginx" {
+		t.Fatalf("body line leaked into the fingerprint: %+v", got)
+	}
+	if got.Protocol != "HTTP" {
+		t.Fatalf("protocol = %q, want HTTP", got.Protocol)
+	}
+}

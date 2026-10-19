@@ -247,7 +247,7 @@ Pure-FTPd 无版本 `0.95 − 0.20 = 0.75`、SSH `0.95`、nginx/Apache/MySQL/Pro
 |---|---|---|
 | 镜像体积/攻击面 | 静态链接（`CGO_ENABLED=0`）+ `scratch` 运行时，无 shell/libc/包管理器 | `Dockerfile` |
 | 构建可复现 | `-trimpath`、`-buildvcs=false`、`-ldflags="-s -w"`、依赖 `vendor/`、`GOPROXY=off`（**构建期不访问任何 Go 模块代理**） | `Dockerfile` |
-| 多架构 | `TARGETOS`/`TARGETARCH` 交叉编译（`docker buildx build --platform linux/arm64` 无需模拟） | `Dockerfile` |
+| 单平台构建 | 构建与运行同平台，静态链接产物；不引入交叉编译矩阵（评估与生产都只在一台机器上 `compose up`，多架构是纯增量风险） | `Dockerfile` |
 | 版本可追溯 | `-X main.version=${VERSION}` 注入，`/health` 与 `server version` 可查 | `Dockerfile`、`api` |
 | 健康检查 | **镜像内没有 curl**，探针是二进制自己的 `healthcheck` 子命令（`GET 127.0.0.1:$PORT/health`，2s 超时） | `Dockerfile`、`cmd/server` |
 | 启动依赖 | `depends_on: {condition: service_healthy}`，client 真的要等 server 探针通过 | `docker-compose.yml` |
@@ -304,4 +304,5 @@ ok  github.com/esp-oss/banner-fingerprint/internal/model
 - 只根据**单条 banner** 判定，不做多轮交互探测（示例数据也没有给交互能力）。真实资产测绘里，MySQL/Redis 的版本常常需要主动探测才能拿到，这里如实留空而不是猜。
 - `version` 只提取、不联网核对 CVE 库；没有做版本号语义排序。
 - HTTPS 在 443 上仍报 `HTTP`（因为 banner 就是明文 HTTP 响应），这是**有意为之**：`protocol` 描述的是"这是什么协议"，而不是"端口通常是什么服务"。
+- HTTP banner 允许**没有状态行**（`Server: nginx/1.24.0` 单独出现也认），但没有 `Server` 头、也没有状态行时无法判定为 HTTP。
 - 规则集当前 34 条，覆盖 SSH / HTTP / MySQL / Redis / FTP / SMTP / IMAP / POP3 / TLS；新增协议只需加 YAML（见 §4）。

@@ -16,21 +16,26 @@ import (
 
 // httpHeaderValue returns the value of one HTTP response header.
 //
-// It accepts CRLF and bare-LF terminators, is case-insensitive on the header
-// name, and returns "" when the banner is not an HTTP response or the header is
-// absent. Only the header block is searched, so a "Server:" string inside an
-// HTML body can never produce a false positive.
+// Two capture shapes are accepted and handled identically by the caller:
+//
+//	HTTP/1.1 200 OK\r\nServer: nginx/1.24.0\r\nDate: ...   full response
+//	Server: nginx/1.24.0\r\nDate: ...                      capture began mid-headers
+//
+// The second shape is not academic: scanners routinely keep only part of a
+// response, so requiring a status line would turn a perfectly identifiable nginx
+// into "unknown". It is only accepted when the leading lines are structurally
+// valid header lines ("Name: value"), so a plain-text banner that merely contains
+// the text "Server: nginx" is still rejected.
+//
+// Only the header block is ever searched: a "Server:" string inside an HTML body
+// cannot produce a false positive, because the first non-header line ends the
+// block.
 func httpHeaderValue(banner, name string) string {
-	if !strings.HasPrefix(banner, "HTTP/") {
+	block, ok := headerBlock(banner)
+	if !ok {
 		return ""
 	}
-	head := banner
-	if i := strings.Index(head, "\r\n\r\n"); i >= 0 {
-		head = head[:i]
-	} else if i := strings.Index(head, "\n\n"); i >= 0 {
-		head = head[:i]
-	}
-	for _, line := range strings.Split(head, "\n") {
+	for _, line := range strings.Split(block, "\n") {
 		line = strings.TrimRight(line, "\r")
 		colon := strings.IndexByte(line, ':')
 		if colon <= 0 {
@@ -41,6 +46,66 @@ func httpHeaderValue(banner, name string) string {
 		}
 	}
 	return ""
+}
+
+// headerBlock isolates the header section of a banner and reports whether the
+// banner looks like HTTP headers at all.
+//
+// A full response is recognised by its status line; a truncated capture is
+// recognised only if every leading line is a syntactically valid header line.
+// Either way the block ends at the first blank line or the first line that is not
+// a header line, which is what keeps response bodies out of the search.
+func headerBlock(banner string) (string, bool) {
+	start := 0
+	fullResponse := strings.HasPrefix(banner, "HTTP/")
+	if fullResponse {
+		i := strings.IndexByte(banner, '\n')
+		if i < 0 {
+			// "HTTP/1.1" with no newline carries no header at all.
+			return "", false
+		}
+		start = i + 1
+	}
+
+	var b strings.Builder
+	sawHeader := false
+	for _, line := range strings.Split(banner[start:], "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line == "" {
+			break // end of the header block
+		}
+		if !isHeaderLine(line) {
+			if !fullResponse {
+				return "", false // mid-header capture that is not header-shaped
+			}
+			break // a full response: the body has started
+		}
+		sawHeader = true
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	if !sawHeader {
+		return "", false
+	}
+	return b.String(), true
+}
+
+// isHeaderLine reports whether line is "Name: value" with a token-shaped name.
+func isHeaderLine(line string) bool {
+	colon := strings.IndexByte(line, ':')
+	if colon <= 0 || colon > 64 {
+		return false
+	}
+	for i := 0; i < colon; i++ {
+		c := line[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '-', c == '_':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // mysqlServerVersion extracts the server version from a MySQL initial handshake

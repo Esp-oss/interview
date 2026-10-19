@@ -58,6 +58,7 @@ services:
     stop_grace_period: 15s
     healthcheck:
       # No shell and no curl inside scratch: the binary probes itself.
+      # start_period covers the rule-set compile; retries then tolerate a slow CI box.
       test: ["CMD", "/server", "healthcheck"]
       interval: 5s
       timeout: 2s

@@ -1,0 +1,12 @@
+refactor: drop cross-compile matrix; accept HTTP header blocks without a status line
+
+- Dockerfile: remove TARGETOS/TARGETARCH and the GOOS/GOARCH plumbing. Build
+  and run platform are identical here, so the cross-compile matrix only added
+  build surface without changing behaviour.
+- engine: http_header now accepts a capture that starts mid-headers
+  (e.g. a lone "Server: nginx/1.24.0") provided every leading line is
+  structurally "Name: value". The header block still ends at the first blank or
+  non-header line, so response bodies are never searched for headers.
+- tests: three new cases cover status-line-trimmed captures, free-text
+  rejection and body-line exclusion. Full suite, 8s fuzz and -race (run in a
+  Linux container) all pass; images rebuilt and the compose stack re-verified.

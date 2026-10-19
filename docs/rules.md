@@ -54,6 +54,16 @@ match:
 先抽出指定 HTTP 响应头的**值**（大小写不敏感、容忍 `\r\n` 与 `\n`、只在头部块内查找），再让 `pattern` 匹配该值。
 用途：避免把 HTML body 里的产品名当成指纹。
 
+接受两种捕获形态，行为一致：
+
+```text
+HTTP/1.1 200 OK\r\nServer: nginx/1.24.0\r\nDate: ...   ← 完整响应（按状态行定位）
+Server: nginx/1.24.0\r\nDate: ...                      ← 状态行被 scanner 截掉
+```
+
+第二种只在前导行**结构上都是 `Name: value`** 时才成立，因此纯文本里出现 `Server: nginx` 不会被当成 HTTP；
+头部块在第一个空行或第一个非头部行结束，所以响应体里即使有 `Server:` 也不会被当作证据。
+
 ```yaml
 match:
   kind: http_header
